@@ -1,0 +1,1 @@
+# kocogi621998.github.io
