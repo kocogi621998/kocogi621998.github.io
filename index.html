@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcard App</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            min-height: 100vh;
+            background: #eef1f7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .warning {
+            color: #c62828;
+            background: #fff3f3;
+            border: 1px solid #e57373;
+            border-radius: 8px;
+            padding: 10px 18px;
+            margin-bottom: 16px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+        .controls input[type="file"] {
+            font-size: 14px;
+            color: #555;
+        }
+
+        /* Card flip container */
+        .card-container {
+            perspective: 1200px;
+            width: 520px;
+            height: 340px;
+            cursor: pointer;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.55s ease;
+            border-radius: 16px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+        }
+
+        .card.flipped { transform: rotateY(180deg); }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 16px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* FRONT */
+        .front {
+            background: #ffffff;
+            align-items: center;
+            text-align: center;
+        }
+        .front .word {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .front .definition {
+            font-size: 15px;
+            color: #666;
+            font-style: italic;
+        }
+        .front .hint {
+            margin-top: 18px;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        /* BACK */
+        .back {
+            background: #1a1a2e;
+            transform: rotateY(180deg);
+            color: #fff;
+            justify-content: flex-start;
+            gap: 12px;
+        }
+        .back .row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .back .label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #7ecfff;
+        }
+        .back .value {
+            font-size: 14px;
+            color: #f0f0f0;
+            line-height: 1.5;
+        }
+        .back .divider {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Counter */
+        .counter {
+            margin-top: 14px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        /* Nav */
+        .nav-buttons {
+            margin-top: 18px;
+            display: flex;
+            gap: 12px;
+        }
+        button {
+            padding: 10px 28px;
+            font-size: 15px;
+            border: none;
+            border-radius: 8px;
+            background: #3b5bdb;
+            color: white;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover:not(:disabled) { background: #2f4ac4; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <div id="warning-msg" class="warning">⚠️ Không tìm thấy file <b>volcabulary.xlsx</b>. Vui lòng chọn file thủ công.</div>
+
+    <div class="controls">
+        <input type="file" id="excel-file" accept=".xlsx, .xls" />
+    </div>
+
+    <div class="card-container" onclick="flipCard()">
+        <div class="card" id="flashcard">
+            <!-- FRONT -->
+            <div class="card-face front">
+                <div class="word" id="card-word">Chọn file để bắt đầu</div>
+                <div class="definition" id="card-definition"></div>
+                <div class="hint">Nhấn để xem chi tiết</div>
+            </div>
+            <!-- BACK -->
+            <div class="card-face back" id="card-back">
+                <div class="row">
+                    <span class="label">Ví dụ 1 (Đề bài)</span>
+                    <span class="value" id="back-ex1">—</span>
+                </div>
+                <hr class="divider"/>
+                <div class="row">
+                    <span class="label">Ví dụ 2 (Cá nhân hóa)</span>
+                    <span class="value" id="back-ex2">—</span>
+                </div>
+                <hr class="divider"/>
+                <div class="row">
+                    <span class="label">Phiên âm</span>
+                    <span class="value" id="back-phonetic">—</span>
+                </div>
+                <hr class="divider"/>
+                <div class="row">
+                    <span class="label">Ghi chú</span>
+                    <span class="value" id="back-note">—</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="counter" id="counter"></div>
+
+    <div class="nav-buttons">
+        <button id="prev-btn" onclick="prevCard()" disabled>← Trước</button>
+        <button id="random-btn" onclick="toggleRandom()" disabled>🔀 Ngẫu nhiên: OFF</button>
+        <button id="next-btn" onclick="nextCard()" disabled>Sau →</button>
+    </div>
+
+    <script>
+        let flashcards = [];
+        let shuffledIndices = [];
+        let currentIndex = 0;
+        let isRandom = false;
+        const cardElement = document.getElementById('flashcard');
+
+        function autoLoadFile() {
+            fetch('volcabulary.xlsx')
+                .then(res => { if (!res.ok) throw new Error(); return res.arrayBuffer(); })
+                .then(buf => loadWorkbook(new Uint8Array(buf)))
+                .catch(() => { document.getElementById('warning-msg').style.display = 'block'; });
+        }
+
+        function loadWorkbook(data) {
+            const wb = XLSX.read(data, { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            flashcards = XLSX.utils.sheet_to_json(ws);
+            console.log('Columns:', flashcards.length ? Object.keys(flashcards[0]) : 'empty');
+            if (flashcards.length > 0) {
+                currentIndex = 0;
+                shuffledIndices = flashcards.map((_, i) => i);
+                showCard();
+                document.getElementById('prev-btn').disabled = false;
+                document.getElementById('next-btn').disabled = false;
+                document.getElementById('random-btn').disabled = false;
+                document.getElementById('warning-msg').style.display = 'none';
+            } else {
+                alert("File Excel trống hoặc không đúng định dạng!");
+            }
+        }
+
+        autoLoadFile();
+
+        document.getElementById('excel-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => loadWorkbook(new Uint8Array(e.target.result));
+            reader.readAsArrayBuffer(file);
+        });
+
+        function val(row, key) {
+            return row[key] !== undefined && row[key] !== null && row[key] !== '' ? String(row[key]) : '—';
+        }
+
+        function shuffle(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        function toggleRandom() {
+            isRandom = !isRandom;
+            if (isRandom) shuffle(shuffledIndices);
+            else shuffledIndices = flashcards.map((_, i) => i);
+            currentIndex = 0;
+            const btn = document.getElementById('random-btn');
+            btn.textContent = isRandom ? '🔀 Ngẫu nhiên: ON' : '🔀 Ngẫu nhiên: OFF';
+            btn.style.background = isRandom ? '#e67e22' : '#3b5bdb';
+            showCard();
+        }
+
+        function showCard() {
+            cardElement.classList.remove('flipped');
+            setTimeout(() => {
+                const row = flashcards[shuffledIndices[currentIndex]];
+                const keys = Object.keys(row);
+                document.getElementById('card-word').textContent        = val(row, keys[0]);
+                document.getElementById('card-definition').textContent  = val(row, keys[1]);
+                document.getElementById('back-ex1').textContent         = val(row, keys[2]);
+                document.getElementById('back-ex2').textContent         = val(row, keys[3]);
+                document.getElementById('back-phonetic').textContent    = val(row, keys[4]);
+                document.getElementById('back-note').textContent        = val(row, keys[5]);
+                document.getElementById('counter').textContent          = `${currentIndex + 1} / ${flashcards.length}`;
+                speak(val(row, keys[0]));
+            }, 150);
+        }
+
+        function flipCard() {
+            if (flashcards.length === 0) return;
+            cardElement.classList.toggle('flipped');
+        }
+
+        function nextCard() {
+            if (flashcards.length === 0) return;
+            currentIndex = (currentIndex + 1) % flashcards.length;
+            showCard();
+        }
+
+        function prevCard() {
+            if (flashcards.length === 0) return;
+            currentIndex = (currentIndex - 1 + flashcards.length) % flashcards.length;
+            showCard();
+        }
+
+        function speak(text) {
+            if (!text || text === '—' || !window.speechSynthesis) return;
+            const u = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(u);
+        }
+    </script>
+</body>
+</html>
