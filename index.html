@@ -262,9 +262,18 @@
 
         function loadWorkbook(data) {
             const wb = XLSX.read(data, { type: 'array' });
-            const ws = wb.Sheets[wb.SheetNames[0]];
-            flashcards = XLSX.utils.sheet_to_json(ws);
-            console.log('Columns:', flashcards.length ? Object.keys(flashcards[0]) : 'empty');
+            console.log('Sheet names:', wb.SheetNames);
+
+            flashcards = [];
+            wb.SheetNames.forEach(name => {
+                const ws = wb.Sheets[name];
+                console.log(`Sheet "${name}" ref:`, ws['!ref']);
+                const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                const filtered = rows.filter(row => Object.values(row).some(v => v !== ''));
+                flashcards = flashcards.concat(filtered);
+            });
+
+            console.log('Total rows loaded:', flashcards.length);
             if (flashcards.length > 0) {
                 currentIndex = 0;
                 shuffledIndices = flashcards.map((_, i) => i);
