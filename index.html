@@ -356,27 +356,38 @@
             }
         }
 
-        // Pre-load voices and cache an English one
         let englishVoice = null;
+
         function loadVoices() {
             const voices = window.speechSynthesis.getVoices();
-            // Prefer en-US, fall back to any en-* voice
-            englishVoice = voices.find(v => v.lang === 'en-US')
+            console.log('[Voices]', voices.map(v => `${v.name} (${v.lang})`));
+            // Prefer a voice whose name contains "English" (covers iOS named voices like "Samantha")
+            englishVoice = voices.find(v => /english/i.test(v.name))
+                        || voices.find(v => v.lang === 'en-US')
                         || voices.find(v => v.lang.startsWith('en'))
                         || null;
+            console.log('[Selected voice]', englishVoice ? `${englishVoice.name} (${englishVoice.lang})` : 'none — will rely on lang tag');
         }
-        if (window.speechSynthesis) {
+
+        function initVoices() {
+            if (!window.speechSynthesis) return;
             loadVoices();
             window.speechSynthesis.onvoiceschanged = loadVoices;
+            // iOS: voices may only appear after a tiny delay
+            setTimeout(loadVoices, 500);
         }
+        initVoices();
 
         function speak(text) {
             if (!soundOn || !text || text === '—' || !window.speechSynthesis) return;
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'en-US';
-            if (englishVoice) u.voice = englishVoice;
             window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(u);
+            // iOS needs a short pause after cancel before speaking
+            setTimeout(() => {
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = 'en-US';
+                if (englishVoice) u.voice = englishVoice;
+                window.speechSynthesis.speak(u);
+            }, 50);
         }
     </script>
 </body>
