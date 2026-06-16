@@ -165,6 +165,7 @@
         #sound-btn { background: #27ae60; }
         #sound-btn.muted { background: #888; }
         #sound-btn:hover:not(:disabled) { filter: brightness(0.9); }
+        #repeat-btn { background: #8e44ad; }
 
         /* ── Responsive ── */
 
@@ -242,6 +243,7 @@
         <button id="random-btn" onclick="toggleRandom()" disabled>🔀 Ngẫu nhiên: OFF</button>
         <button id="next-btn" onclick="nextCard()" disabled>Sau →</button>
         <button id="sound-btn" onclick="toggleSound()">🔊 Âm thanh: ON</button>
+        <button id="repeat-btn" onclick="repeatSpeak()" disabled>🔁 Lặp lại</button>
     </div>
 
     <script>
@@ -270,6 +272,7 @@
                 document.getElementById('prev-btn').disabled = false;
                 document.getElementById('next-btn').disabled = false;
                 document.getElementById('random-btn').disabled = false;
+                document.getElementById('repeat-btn').disabled = false;
                 document.getElementById('warning-msg').style.display = 'none';
             } else {
                 alert("File Excel trống hoặc không đúng định dạng!");
@@ -342,6 +345,7 @@
         }
 
         let soundOn = true;
+        let currentWord = '';
 
         function toggleSound() {
             soundOn = !soundOn;
@@ -378,10 +382,18 @@
         }
         initVoices();
 
+        function repeatSpeak() {
+            if (currentWord) doSpeak(currentWord);
+        }
+
         function speak(text) {
             if (!soundOn || !text || text === '—' || !window.speechSynthesis) return;
+            currentWord = text;
+            doSpeak(text);
+        }
+
+        function doSpeak(text) {
             window.speechSynthesis.cancel();
-            // iOS needs a short pause after cancel before speaking
             setTimeout(() => {
                 const u = new SpeechSynthesisUtterance(text);
                 u.lang = 'en-US';
