@@ -98,12 +98,19 @@
             transform: rotateY(180deg);
             color: #fff;
             justify-content: flex-start;
-            gap: 12px;
+            gap: 10px;
+            overflow-y: auto;
+            /* custom scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
         }
+        .back::-webkit-scrollbar { width: 4px; }
+        .back::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
         .back .row {
             display: flex;
             flex-direction: column;
             gap: 2px;
+            flex-shrink: 0;
         }
         .back .label {
             font-size: 10px;
@@ -113,13 +120,15 @@
             color: #7ecfff;
         }
         .back .value {
-            font-size: 14px;
+            font-size: 13px;
             color: #f0f0f0;
             line-height: 1.5;
+            word-break: break-word;
         }
         .back .divider {
             border: none;
             border-top: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
         }
 
         /* Counter */
@@ -347,9 +356,25 @@
             }
         }
 
+        // Pre-load voices and cache an English one
+        let englishVoice = null;
+        function loadVoices() {
+            const voices = window.speechSynthesis.getVoices();
+            // Prefer en-US, fall back to any en-* voice
+            englishVoice = voices.find(v => v.lang === 'en-US')
+                        || voices.find(v => v.lang.startsWith('en'))
+                        || null;
+        }
+        if (window.speechSynthesis) {
+            loadVoices();
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+
         function speak(text) {
             if (!soundOn || !text || text === '—' || !window.speechSynthesis) return;
             const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'en-US';
+            if (englishVoice) u.voice = englishVoice;
             window.speechSynthesis.cancel();
             window.speechSynthesis.speak(u);
         }
