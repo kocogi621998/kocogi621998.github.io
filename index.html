@@ -40,7 +40,7 @@
         /* Card flip container */
         .card-container {
             perspective: 1200px;
-            width: 520px;
+            width: min(520px, 100%);
             height: 340px;
             cursor: pointer;
         }
@@ -133,10 +133,14 @@
         .nav-buttons {
             margin-top: 18px;
             display: flex;
-            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 520px;
         }
         button {
-            padding: 10px 28px;
+            padding: 10px 20px;
             font-size: 15px;
             border: none;
             border-radius: 8px;
@@ -144,9 +148,41 @@
             color: white;
             cursor: pointer;
             transition: background 0.2s;
+            flex: 1 1 auto;
+            min-width: 100px;
         }
         button:hover:not(:disabled) { background: #2f4ac4; }
         button:disabled { background: #ccc; cursor: not-allowed; }
+        #sound-btn { background: #27ae60; }
+        #sound-btn.muted { background: #888; }
+        #sound-btn:hover:not(:disabled) { filter: brightness(0.9); }
+
+        /* ── Responsive ── */
+
+        /* Tablet / small laptop */
+        @media (max-width: 600px) {
+            body { padding: 16px 12px; justify-content: flex-start; padding-top: 32px; }
+
+            .card-container { height: 300px; }
+
+            .front .word { font-size: 26px; }
+            .front .definition { font-size: 14px; }
+
+            .back { gap: 8px; padding: 18px; }
+            .back .value { font-size: 13px; }
+
+            .counter { font-size: 12px; }
+        }
+
+        /* Mobile */
+        @media (max-width: 400px) {
+            .card-container { height: 270px; }
+
+            .front .word { font-size: 22px; }
+            .card-face { padding: 18px; }
+
+            button { font-size: 13px; padding: 9px 12px; }
+        }
     </style>
 </head>
 <body>
@@ -196,6 +232,7 @@
         <button id="prev-btn" onclick="prevCard()" disabled>← Trước</button>
         <button id="random-btn" onclick="toggleRandom()" disabled>🔀 Ngẫu nhiên: OFF</button>
         <button id="next-btn" onclick="nextCard()" disabled>Sau →</button>
+        <button id="sound-btn" onclick="toggleSound()">🔊 Âm thanh: ON</button>
     </div>
 
     <script>
@@ -295,8 +332,23 @@
             showCard();
         }
 
+        let soundOn = true;
+
+        function toggleSound() {
+            soundOn = !soundOn;
+            const btn = document.getElementById('sound-btn');
+            if (soundOn) {
+                btn.textContent = '🔊 Âm thanh: ON';
+                btn.classList.remove('muted');
+            } else {
+                btn.textContent = '🔇 Âm thanh: OFF';
+                btn.classList.add('muted');
+                window.speechSynthesis && window.speechSynthesis.cancel();
+            }
+        }
+
         function speak(text) {
-            if (!text || text === '—' || !window.speechSynthesis) return;
+            if (!soundOn || !text || text === '—' || !window.speechSynthesis) return;
             const u = new SpeechSynthesisUtterance(text);
             window.speechSynthesis.cancel();
             window.speechSynthesis.speak(u);
